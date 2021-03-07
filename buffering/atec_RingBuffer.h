@@ -25,8 +25,8 @@ namespace atec
         
         // TODO: this shouldn't work properly yet
         void readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps);
-//        double readInterpSamp(int channel, int samp, double delaySamps);
-        double readInterpSamp(int channel, double delaySamps);
+        double readInterpSamp(int channel, int samp, double delaySamps);
+//        double readInterpSamp(int channel, double delaySamps);
         
         int getWriteIdx();
         void advanceWriteIdx(int blockSize); // this could use a safety check to disallow negative blockSize values

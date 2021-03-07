@@ -82,10 +82,11 @@ void RingBuffer::read(juce::AudioBuffer<float>& outBuf, int delaySamps)
         int readIdx;
         
         // calculate a safe readIdx for this channel
-        readIdx = mWriteIdx - delaySamps;
+        // read start point should be mOwnerBlockSize samples behind the write index at a minimum
+        readIdx = (mWriteIdx - mOwnerBlockSize) - delaySamps;
 
         // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
-        if(readIdx<0)
+        if(readIdx < 0)
             readIdx += mBufSize;
         
         for(int sample = 0; sample < outBufSize; sample++, readIdx++)
@@ -102,7 +103,8 @@ void RingBuffer::read(int channel, juce::AudioBuffer<float>& outBuf, int delaySa
     int readIdx;
     
     // calculate a safe readIdx for this channel
-    readIdx = mWriteIdx - delaySamps;
+    // read start point should be mOwnerBlockSize samples behind the write index at a minimum
+    readIdx = (mWriteIdx - mOwnerBlockSize) - delaySamps;
 
     // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
     if(readIdx<0)
@@ -112,7 +114,6 @@ void RingBuffer::read(int channel, juce::AudioBuffer<float>& outBuf, int delaySa
         outBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
 }
 
-// TODO: this shouldn't work properly yet
 // TODO: assumes mBuffer and outBuf have the same number of channels
 void RingBuffer::readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps)
 {
@@ -127,7 +128,8 @@ void RingBuffer::readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps)
         double readIdx;
         
         // calculate a safe readIdx for this channel
-        readIdx = mWriteIdx - delaySamps;
+        // read start point should be mOwnerBlockSize samples behind the write index at a minimum
+        readIdx = (mWriteIdx - mOwnerBlockSize) - delaySamps;
 
         // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
         if(readIdx < 0.0f)
@@ -143,24 +145,25 @@ void RingBuffer::readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps)
     }
 }
 
-// pass in the channel number and buffer sample number along with the fractional delay time
-//double RingBuffer::readInterpSamp(int channel, int samp, double delaySamps)
-double RingBuffer::readInterpSamp(int channel, double delaySamps)
+// pass in the channel number and destination buffer sample number along with the fractional delay time
+double RingBuffer::readInterpSamp(int channel, int samp, double delaySamps)
+//double RingBuffer::readInterpSamp(int channel, double delaySamps)
 {
     double outSamp, readIdx;
     
     outSamp = 0.0f;
     
     // calculate a safe readIdx
-//    readIdx = mWriteIdx + samp - delaySamps;
-    readIdx = mWriteIdx - delaySamps;
-    // in the 2-arg case, when delaySamps is expected to be: desiredDelay - bufferSampIdx, the sample index ends up being added to the RingBuffer write index before subtracting the desired delay amount
+    // read start point should be mOwnerBlockSize samples behind the write index at a minimum
+    // need to go samp samples beyond this minimum in step with the hypothetical buffer we're filling
+    // finally, need to back up delaySamps samples in order to achieve the correct delay
+    readIdx = ((mWriteIdx - mOwnerBlockSize) + samp) - delaySamps;
 
     // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
-    // we'll also mod it by mBufSize in case it's beyond the end of the RingBuffer
     if(readIdx < 0.0f)
         readIdx += mBufSize;
     
+    // we'll also mod it by mBufSize in case it's beyond the end of the RingBuffer
     readIdx = std::fmod(readIdx, mBufSize);
     
     outSamp = Utilities::bufReadInterp(channel, readIdx, mBuffer);
