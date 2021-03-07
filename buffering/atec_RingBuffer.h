@@ -22,12 +22,18 @@ namespace atec
         void read(juce::AudioBuffer<float>& outBuf, int delaySamps);
         // overload read() method so we can read from a specific channel
         void read(int channel, juce::AudioBuffer<float>& outBuf, int delaySamps);
+        
+        // TODO: this shouldn't work properly yet
         void readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps);
-        double readInterpSamp(int channel, int samp, double delaySamps);
+//        double readInterpSamp(int channel, int samp, double delaySamps);
+        double readInterpSamp(int channel, double delaySamps);
+        
+        int getWriteIdx();
         void advanceWriteIdx(int blockSize); // this could use a safety check to disallow negative blockSize values
+        int getOwnerBlockSize();
         void setOwnerBlockSize(int n);
-        void setSize(int numChan, int numSamps, int ownerBlockSize);
         int getSize();
+        void setSize(int numChan, int numSamps, int ownerBlockSize);
         const float* getReadPointer(int channel);
         float* getWritePointer(int channel);
 
