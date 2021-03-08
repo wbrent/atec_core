@@ -2,6 +2,9 @@
 
  */
 
+#ifndef RING_BUFFER_H
+#define RING_BUFFER_H
+
 namespace atec
 {
     #define RINGBUFDEFAULTOWNERBLOCKSIZE 1024
@@ -19,6 +22,8 @@ namespace atec
         void write(juce::AudioBuffer<float>& inBuf);
         // overload write() method so we can write to a specific channel
         void write(int channel, juce::AudioBuffer<float>& inBuf);
+        void writeNoAdvance(juce::AudioBuffer<float>& inBuf);
+        void read(juce::AudioBuffer<float>& outBuf);
         void read(juce::AudioBuffer<float>& outBuf, int delaySamps);
         // overload read() method so we can read from a specific channel
         void read(int channel, juce::AudioBuffer<float>& outBuf, int delaySamps);
@@ -31,11 +36,12 @@ namespace atec
         int getWriteIdx();
         void advanceWriteIdx(int blockSize); // this could use a safety check to disallow negative blockSize values
         int getOwnerBlockSize();
-        void setOwnerBlockSize(int n);
+        void setOwnerBlockSize(int N);
         int getSize();
         void setSize(int numChan, int numSamps, int ownerBlockSize);
         const float* getReadPointer(int channel);
         float* getWritePointer(int channel);
+        const juce::AudioBuffer<float>& getBufRef();
 
     private:
 
@@ -48,3 +54,5 @@ namespace atec
 
     };
 } // namespace atec
+
+#endif

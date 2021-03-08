@@ -12,12 +12,13 @@
  
  */
 
+#include "atec_RingBuffer.h"
+
 namespace atec
 {
     #define OLABUFDEFAULTSIZE 4096
     #define OLABUFDEFAULTOVERLAP 4
 
-    // now that we have the RingBuffer class, this class should inherit from it
     class OlaBufferStereo
     {
     public:
@@ -31,7 +32,11 @@ namespace atec
         void outputOlaBlock(juce::AudioBuffer<float>& outBuf);
         void advanceWriteIdx(int blockSize); // this could use a safety check to disallow negative blockSize values
         int getWindowSize();
+        void setWindowSize(int N);
         int getOverlap();
+        void setOverlap(int o);
+        int getOwnerBlockSize();
+        void setOwnerBlockSize(int N);
         bool getProcessFlag(int channel);
         void clearProcessFlag(int channel);
     //    const juce::AudioBuffer<float>* getBufPointerL();
@@ -45,12 +50,13 @@ namespace atec
 
         juce::AudioBuffer<float> mOverlapBufL;
         juce::AudioBuffer<float> mOverlapBufR;
-        juce::AudioBuffer<float> mRingBuf;
+        RingBuffer mRingBuf;
+        
         // it appears that there is no .resize member function of the WindowingFunction class. so a better solution may be to use an AudioBuffer object and fill it with a home-made Hann window. this will also require a manual element-by-element multiply, since we lose the .multiplyWithWindowingTable member function. perhaps AudioBuffer has a member function for element-by-element multiplication against another buffer?
         juce::dsp::WindowingFunction<float> mHannWindow;
 
-        int mRingBufSize;
-        int mRingBufWriteIdx;
+        int mOwnerBlockSize;
+        int mWindowSize;
         int mOverlap;
         int mHop;
         int mOverlapBufTargetChannel;
