@@ -136,7 +136,7 @@ double Utilities::bufReadInterp(int channel, double readIdx, juce::AudioBuffer<f
 // TODO: add an Array pointer input argument to store the crossing indices. should return number of crossings found
 int Utilities::getZeroCrossingPoints(int channel, juce::AudioBuffer<float>& buffer)
 {
-    
+    return 0;
 }
 
 double Utilities::getZeroCrossingRate(int channel, juce::AudioBuffer<float>& buffer)

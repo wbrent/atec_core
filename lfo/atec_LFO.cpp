@@ -2,6 +2,8 @@ namespace atec
 {
 LFO::LFO()
 {
+    mDebugFlag = false;
+    
     mSampleRate = 48000.0f;
     mType = sin;
     mFreq = 6.0f;
@@ -17,9 +19,23 @@ LFO::~LFO()
 //    std::printf("sampleRate: %f, freq: %f, delta: %f\n", mSampleRate, mFreq, mPhaseDelta);
 }
 
+void LFO::debug(bool d)
+{
+    mDebugFlag = d;
+}
+
 void LFO::init()
 {
     calcPhaseDelta();
+    
+    if (mDebugFlag)
+    {
+        std::string post;
+        post = "LFO angle delta: " + std::to_string(mPhaseDelta) + ", freq: " + std::to_string(mFreq);
+        DBG(post);
+        post = "LFO range start: " + std::to_string(mRange.getStart()) + ", end: " + std::to_string(mRange.getEnd());
+        DBG(post);
+    }
 }
 
 LFO::LfoType LFO::getType()

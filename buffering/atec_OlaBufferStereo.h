@@ -25,10 +25,11 @@ namespace atec
         OlaBufferStereo();
         ~OlaBufferStereo();
 
+        void debug(bool d);
         void init();
         void fillRingBuf(juce::AudioBuffer<float>& inBuf);
         void fillOverlapBuf();
-        void doWindowing(int channel);
+        void doWindowing(int channel, juce::dsp::WindowingFunction<float>& window);
         void outputOlaBlock(juce::AudioBuffer<float>& outBuf);
         void advanceWriteIdx(int blockSize); // this could use a safety check to disallow negative blockSize values
         int getWindowSize();
@@ -39,8 +40,8 @@ namespace atec
         void setOwnerBlockSize(int N);
         bool getProcessFlag(int channel);
         void clearProcessFlag(int channel);
-    //    const juce::AudioBuffer<float>* getBufPointerL();
-    //    const juce::AudioBuffer<float>* getBufPointerR();
+        const juce::AudioBuffer<float>& getBufRefL();
+        const juce::AudioBuffer<float>& getBufRefR();
         const float* getReadPointerL(int channel);
         const float* getReadPointerR(int channel);
         float* getWritePointerL(int channel);
@@ -51,9 +52,6 @@ namespace atec
         juce::AudioBuffer<float> mOverlapBufL;
         juce::AudioBuffer<float> mOverlapBufR;
         RingBuffer mRingBuf;
-        
-        // it appears that there is no .resize member function of the WindowingFunction class. so a better solution may be to use an AudioBuffer object and fill it with a home-made Hann window. this will also require a manual element-by-element multiply, since we lose the .multiplyWithWindowingTable member function. perhaps AudioBuffer has a member function for element-by-element multiplication against another buffer?
-        juce::dsp::WindowingFunction<float> mHannWindow;
 
         int mOwnerBlockSize;
         int mWindowSize;

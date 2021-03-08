@@ -1,22 +1,14 @@
 namespace atec
 {
-// the WindowingFunction class has no default constructor, so initializion list creates an object for a Hann window of default size. note that normalization arg should be FALSE
-OlaBufferStereo::OlaBufferStereo() : mHannWindow(OLABUFDEFAULTSIZE, juce::dsp::WindowingFunction<float>::hann, false)
+OlaBufferStereo::OlaBufferStereo()
 {
-    mDebugFlag = true;
+    mDebugFlag = false;
     mRingBuf.debug(mDebugFlag);
 
     // this needs to be set properly with setOwnerBlockSize() before init()
     mOwnerBlockSize = 1024;
     mWindowSize = OLABUFDEFAULTSIZE;
     mOverlap = OLABUFDEFAULTOVERLAP;
-    mHop = mWindowSize/(double)mOverlap;
-    
-    mProcessFlags.resize(mOverlap);
-
-    // make a buffer with mOverlap channels, each one the same size as the ring buffer
-    mOverlapBufL.setSize(mOverlap, mWindowSize);
-    mOverlapBufR.setSize(mOverlap, mWindowSize);
 
     // initialize the buffers so there isn't garbage in them
     init();
@@ -36,9 +28,22 @@ OlaBufferStereo::~OlaBufferStereo()
         DBG("OlaBufferStereo destructor called");
 }
 
+void OlaBufferStereo::debug(bool d)
+{
+    mDebugFlag = d;
+}
+
 // if host block size changes, best to call this and start buffering process over
 void OlaBufferStereo::init()
 {
+    mHop = mWindowSize/(double)mOverlap;
+    
+    mProcessFlags.resize(mOverlap);
+
+    // make a buffer with mOverlap channels, each one the same size as the ring buffer
+    mOverlapBufL.setSize(mOverlap, mWindowSize);
+    mOverlapBufR.setSize(mOverlap, mWindowSize);
+    
     // always 2 channels for stereo
     // make the RingBuffer size a multiple of the window size for OLA. 2x should be safe
     // we must know mOwnerBlockSize before init(), so init() will be called in prepareToPlay()
@@ -56,6 +61,9 @@ void OlaBufferStereo::init()
         std::string post;
         
         post = "OlaBufferStereo init. mOwnerBlockSize: " + std::to_string(mOwnerBlockSize);
+        DBG(post);
+
+        post = "OlaBufferStereo init. mWindowSize: " + std::to_string(mWindowSize) + ", mOverlap: " + std::to_string(mOverlap) + ", mHop: " + std::to_string(mHop);
         DBG(post);
     }
 }
@@ -105,16 +113,16 @@ void OlaBufferStereo::fillOverlapBuf()
     }
 }
 
-void OlaBufferStereo::doWindowing(int channel)
+// TODO: add safety check for size of window == mWindowSize
+void OlaBufferStereo::doWindowing(int channel, juce::dsp::WindowingFunction<float>& window)
 {
     auto* overlapBufDataL = mOverlapBufL.getWritePointer(channel);
     auto* overlapBufDataR = mOverlapBufR.getWritePointer(channel);
 
-    mHannWindow.multiplyWithWindowingTable(overlapBufDataL, mWindowSize);
-    mHannWindow.multiplyWithWindowingTable(overlapBufDataR, mWindowSize);
+    window.multiplyWithWindowingTable(overlapBufDataL, mWindowSize);
+    window.multiplyWithWindowingTable(overlapBufDataR, mWindowSize);
 }
 
-// TODO: this needs to be inspected again. numSamps can be negative, which causes an assertion. there's some confusion over assignment of startIdx, which may have to do with the fact that mWindowSize != mRingBuf.getSize()
 void OlaBufferStereo::outputOlaBlock(juce::AudioBuffer<float>& outBuf)
 {
     int numChannels = outBuf.getNumChannels();
@@ -213,6 +221,7 @@ int OlaBufferStereo::getWindowSize()
 void OlaBufferStereo::setWindowSize(int N)
 {
     mWindowSize = N;
+    init();
 }
 
 int OlaBufferStereo::getOverlap()
@@ -223,6 +232,7 @@ int OlaBufferStereo::getOverlap()
 void OlaBufferStereo::setOverlap(int o)
 {
     mOverlap = o;
+    init();
 }
 
 int OlaBufferStereo::getOwnerBlockSize()
@@ -233,6 +243,7 @@ int OlaBufferStereo::getOwnerBlockSize()
 void OlaBufferStereo::setOwnerBlockSize(int N)
 {
     mOwnerBlockSize = N;
+    init();
 }
 
 bool OlaBufferStereo::getProcessFlag(int channel)
@@ -249,19 +260,15 @@ void OlaBufferStereo::clearProcessFlag(int channel)
     mProcessFlags.set(channel, false);
 }
 
-//const juce::AudioBuffer<float>* getBufPointerL()
-//{
-//    const juce::AudioBuffer<float>* ptr;
-//
-//    ptr = &mOverlapBufL;
-//}
-//
-//const juce::AudioBuffer<float>* getBufPointerR()
-//{
-//    const juce::AudioBuffer<float>* ptr;
-//
-//    ptr = &mOverlapBufR;
-//}
+const juce::AudioBuffer<float>& OlaBufferStereo::getBufRefL()
+{
+    return mOverlapBufL;
+}
+
+const juce::AudioBuffer<float>& OlaBufferStereo::getBufRefR()
+{
+    return mOverlapBufR;
+}
 
 const float* OlaBufferStereo::getReadPointerL(int channel)
 {

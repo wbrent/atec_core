@@ -17,6 +17,7 @@ namespace atec
         ~LFO();
 
         void init();
+        void debug(bool d);
         LfoType getType();
         void setType (LfoType t);
         double getFreq();
@@ -31,6 +32,7 @@ namespace atec
         double getNextSample();
         
     private:
+        bool mDebugFlag;
         LfoType mType;
         double mFreq;
         juce::Range<double> mRange;
