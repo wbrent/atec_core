@@ -24,7 +24,7 @@ OlaBufferStereo::OlaBufferStereo() : mHannWindow(OLABUFDEFAULTSIZE, juce::dsp::W
     if(mDebugFlag)
     {
         std::string post;
-        post = "OlaBufferStereo constructor called. mBufSize: " + std::to_string(mWindowSize) + ", mOverlap: " + std::to_string(mOverlap) + ", mHop: " + std::to_string(mHop);
+        post = "OlaBufferStereo constructor called. mWindowSize: " + std::to_string(mWindowSize) + ", mOverlap: " + std::to_string(mOverlap) + ", mHop: " + std::to_string(mHop);
         DBG(post);
     }
 }
@@ -42,7 +42,7 @@ void OlaBufferStereo::init()
     // always 2 channels for stereo
     // make the RingBuffer twice as big as our window size for OLA? or can it just be the same as the window size?
     // we must know mOwnerBlockSize before init(), so init() will be called in prepareToPlay()
-    mRingBuf.setSize(2, mWindowSize, mOwnerBlockSize);
+    mRingBuf.setSize(2, mWindowSize * 2, mOwnerBlockSize);
     
     mRingBuf.init();
     mOverlapBufL.clear();
@@ -50,12 +50,21 @@ void OlaBufferStereo::init()
     mProcessFlags.fill(false);
 
     mOverlapBufTargetChannel = 0;
+
+    if(mDebugFlag)
+    {
+        std::string post;
+        
+        post = "OlaBufferStereo init. mOwnerBlockSize: " + std::to_string(mOwnerBlockSize);
+        DBG(post);
+    }
 }
 
 void OlaBufferStereo::fillRingBuf(juce::AudioBuffer<float>& inBuf)
 {
     // use special writeNoAdvance() method so we can manually advance the RingBuffer write index after all of the OLA work is done
     mRingBuf.writeNoAdvance(inBuf);
+//    mRingBuf.write(inBuf);
 }
 
 // call this after fillRingBuf()
@@ -66,19 +75,21 @@ void OlaBufferStereo::fillOverlapBuf()
     // if we hit a window hop boundary by advancing mRingBufWriteIdx on the last iteration, copy the most recent mRingBufSize samples from the ring buffer to the current overlap buffer target channel, then advance mOverlapBufTargetChannel to point to the next channel in mOverlapBuf
     if(ringBufWriteIdx % mHop == 0)
     {
-        for (int stereoChannel=0; stereoChannel<2; ++stereoChannel)
+        juce::AudioBuffer<float> ringBufContents;
+        ringBufContents.setSize(2, mWindowSize);
+        ringBufContents.clear();
+        
+        mRingBuf.read(ringBufContents, mWindowSize);
+        
+        for (int stereoChannel = 0; stereoChannel < 2; ++stereoChannel)
         {
             switch(stereoChannel)
             {
-                    // we'll copy from mRingBuf starting at the current ringBufWriteIdx to the end of the ring buffer, and put that oldest chunk of audio at the head of the overlap buf target channel
-                    // this must be followed up by another copy from the head of the ring buffer, written starting where we left off in the overlap buf target channel
                 case 0:
-                    mOverlapBufL.copyFrom(mOverlapBufTargetChannel, 0, mRingBuf.getBufRef(), stereoChannel, ringBufWriteIdx, mWindowSize - ringBufWriteIdx);
-                    mOverlapBufL.copyFrom(mOverlapBufTargetChannel, mWindowSize - ringBufWriteIdx, mRingBuf.getBufRef(), stereoChannel, 0, ringBufWriteIdx);
+                    mOverlapBufL.copyFrom(mOverlapBufTargetChannel, 0, ringBufContents, stereoChannel, 0, mWindowSize);
                     break;
                 case 1:
-                    mOverlapBufR.copyFrom(mOverlapBufTargetChannel, 0, mRingBuf.getBufRef(), stereoChannel, ringBufWriteIdx, mWindowSize - ringBufWriteIdx);
-                    mOverlapBufR.copyFrom(mOverlapBufTargetChannel, mWindowSize - ringBufWriteIdx, mRingBuf.getBufRef(), stereoChannel, 0, ringBufWriteIdx);
+                    mOverlapBufR.copyFrom(mOverlapBufTargetChannel, 0, ringBufContents, stereoChannel, 0, mWindowSize);
                     break;
                 default:
                     break;
@@ -103,42 +114,45 @@ void OlaBufferStereo::doWindowing(int channel)
     mHannWindow.multiplyWithWindowingTable(overlapBufDataR, mWindowSize);
 }
 
-// WB: this needs to be inspected again...
+// TODO: this needs to be inspected again. numSamps can be negative, which causes an assertion. there's some confusion over assignment of startIdx, which may have to do with the fact that mWindowSize != mRingBuf.getSize()
 void OlaBufferStereo::outputOlaBlock(juce::AudioBuffer<float>& outBuf)
 {
     int numChannels = outBuf.getNumChannels();
-    int n = outBuf.getNumSamples();
+    int bufSize = outBuf.getNumSamples();
 
-    if(numChannels>1)
+    if(numChannels > 1)
     {
         if(mDebugFlag)
         {
-            if(n >= mHop)
+            if(bufSize > mHop)
             {
                 std::string post;
-                post = "OlaBufferStereo WARNING: host block size must be less than " + std::to_string(mHop);
+                post = "OlaBufferStereo WARNING: host block size must be less than or equal to " + std::to_string(mHop);
                 DBG(post);
             }
         }
 
-        for(int stereoChannel=0; stereoChannel<2; ++stereoChannel)
+        for(int stereoChannel = 0; stereoChannel < 2; ++stereoChannel)
         {
-
             // since we've already buffered to the ring buf by the time this method is called, start with an empty buffer for both channels. otherwise, we'll be adding to what's already in the buffer, creating little echos
-            outBuf.clear(stereoChannel, 0, n);
+            outBuf.clear(stereoChannel, 0, bufSize);
 
-            for(int channel=0; channel<mOverlap; ++channel)
+            for(int overlapChannel = 0; overlapChannel < mOverlap; ++overlapChannel)
             {
                 int thisChannel, startIdx, ringBufWriteIdx;
 
                 ringBufWriteIdx = mRingBuf.getWriteIdx();
                 
                 // the upcoming target channel is the oldest, so start the process there
-                thisChannel = mOverlapBufTargetChannel+channel;
-                thisChannel = thisChannel%mOverlap;
+                thisChannel = mOverlapBufTargetChannel + overlapChannel;
+                thisChannel = thisChannel % mOverlap;
 
-                startIdx = ringBufWriteIdx - (mHop*thisChannel);
-                if(startIdx<0)
+                // TODO: what is the logic for starting here exactly? was originally just ringBufWriteIdx - (mHop * thisChannel), but that was when mWindowSize == mRingBuf.getSize(). now, the RingBuffer size is 2x the window size, so we mod.
+                startIdx = (ringBufWriteIdx % mWindowSize);
+//                startIdx -= mOwnerBlockSize;
+                startIdx -= (mHop * thisChannel);
+                
+                if(startIdx < 0)
                     startIdx += mWindowSize;
 
                 if(false)
@@ -147,23 +161,25 @@ void OlaBufferStereo::outputOlaBlock(juce::AudioBuffer<float>& outBuf)
                 switch(stereoChannel)
                 {
                     case 0:
-                        if(startIdx+n < mWindowSize)
-                            outBuf.addFrom(stereoChannel, 0, mOverlapBufL, thisChannel, startIdx, n);
+                        if(startIdx + bufSize < mWindowSize)
+                            outBuf.addFrom(stereoChannel, 0, mOverlapBufL, thisChannel, startIdx, bufSize);
                         else
                         {
-                            int numSamps = mWindowSize-startIdx;
+                            int numSamps = mWindowSize - startIdx;
+                            
                             outBuf.addFrom(stereoChannel, 0, mOverlapBufL, thisChannel, startIdx, numSamps);
-                            outBuf.addFrom(stereoChannel, numSamps, mOverlapBufL, thisChannel, 0, n-numSamps);
+                            outBuf.addFrom(stereoChannel, numSamps, mOverlapBufL, thisChannel, 0, bufSize - numSamps);
                         }
                         break;
                     case 1:
-                        if(startIdx+n < mWindowSize)
-                            outBuf.addFrom(stereoChannel, 0, mOverlapBufR, thisChannel, startIdx, n);
+                        if(startIdx + bufSize < mWindowSize)
+                            outBuf.addFrom(stereoChannel, 0, mOverlapBufR, thisChannel, startIdx, bufSize);
                         else
                         {
-                            int numSamps = mWindowSize-startIdx;
+                            int numSamps = mWindowSize - startIdx;
+
                             outBuf.addFrom(stereoChannel, 0, mOverlapBufR, thisChannel, startIdx, numSamps);
-                            outBuf.addFrom(stereoChannel, numSamps, mOverlapBufR, thisChannel, 0, n-numSamps);
+                            outBuf.addFrom(stereoChannel, numSamps, mOverlapBufR, thisChannel, 0, bufSize - numSamps);
                         }
                         break;
                     default:
@@ -172,7 +188,7 @@ void OlaBufferStereo::outputOlaBlock(juce::AudioBuffer<float>& outBuf)
             }
 
             // reduce gain based on overlap.
-            outBuf.applyGain(stereoChannel, 0, n, 1.0f/(double)mOverlap);
+            outBuf.applyGain(stereoChannel, 0, bufSize, 1.0f/(double)mOverlap);
         }
     }
 }
