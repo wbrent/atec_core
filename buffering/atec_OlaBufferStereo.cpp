@@ -40,7 +40,7 @@ OlaBufferStereo::~OlaBufferStereo()
 void OlaBufferStereo::init()
 {
     // always 2 channels for stereo
-    // make the RingBuffer twice as big as our window size for OLA? or can it just be the same as the window size?
+    // make the RingBuffer size a multiple of the window size for OLA. 2x should be safe
     // we must know mOwnerBlockSize before init(), so init() will be called in prepareToPlay()
     mRingBuf.setSize(2, mWindowSize * 2, mOwnerBlockSize);
     
@@ -147,11 +147,13 @@ void OlaBufferStereo::outputOlaBlock(juce::AudioBuffer<float>& outBuf)
                 thisChannel = mOverlapBufTargetChannel + overlapChannel;
                 thisChannel = thisChannel % mOverlap;
 
-                // TODO: what is the logic for starting here exactly? was originally just ringBufWriteIdx - (mHop * thisChannel), but that was when mWindowSize == mRingBuf.getSize(). now, the RingBuffer size is 2x the window size, so we mod.
+                // we'll make the startIdx for reading out of the overlap buffer channel track the RingBuffer write index.
+                // since the RingBuffer size is set up to be a multiple of the OlaBufferStereo window size, we can just mod by mWindowSize
                 startIdx = (ringBufWriteIdx % mWindowSize);
-//                startIdx -= mOwnerBlockSize;
+                // by subtracting a multiple of the hop size relative to the given overlap buffer channel we're processing, we grab the correct portion from each overlap buffer channel
                 startIdx -= (mHop * thisChannel);
                 
+                // could go negative, and if so, we should wrap around to the end of this overlap buffer channel
                 if(startIdx < 0)
                     startIdx += mWindowSize;
 
@@ -161,13 +163,17 @@ void OlaBufferStereo::outputOlaBlock(juce::AudioBuffer<float>& outBuf)
                 switch(stereoChannel)
                 {
                     case 0:
+                        // as long as we'll stay in bounds going bufSize samples beyond the startIdx, we can do one call to addFrom() and mix in bufSize samples
                         if(startIdx + bufSize < mWindowSize)
                             outBuf.addFrom(stereoChannel, 0, mOverlapBufL, thisChannel, startIdx, bufSize);
                         else
                         {
+                            // otherwise, we need to do two addFrom() calls.
                             int numSamps = mWindowSize - startIdx;
                             
+                            // the first adds the samples from startIdx to the end of the overlap buffer channel
                             outBuf.addFrom(stereoChannel, 0, mOverlapBufL, thisChannel, startIdx, numSamps);
+                            // the second adds samples from the beginning of the overlap buffer channel to the end of the output buffer
                             outBuf.addFrom(stereoChannel, numSamps, mOverlapBufL, thisChannel, 0, bufSize - numSamps);
                         }
                         break;
