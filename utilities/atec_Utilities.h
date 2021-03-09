@@ -26,7 +26,9 @@ namespace atec
         static double cubicInterpolate(double y0, double y1, double y2, double y3, double mu);
         static double bufReadInterp(int channel, double readIdx, juce::AudioBuffer<float>& buffer);
         
-        static int getZeroCrossingPoints(int channel, juce::AudioBuffer<float>& buffer);
+        static void arrayShuffle(juce::Array<int>& seq);
+        
+        static int getZeroCrossingPoints(int channel, juce::AudioBuffer<float>& buffer, juce::Array<int>& xIndices, double threshDb);
         static double getZeroCrossingRate(int channel, juce::AudioBuffer<float>& buffer);
         static void getFftPowerSpec(juce::dsp::Complex<float>* inBuf, juce::Array<double>& outBuf, int N);
         static void getFftMagSpec(juce::dsp::Complex<float>* inBuf, juce::Array<double>& outBuf, int N);

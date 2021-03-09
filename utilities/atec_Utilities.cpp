@@ -133,10 +133,53 @@ double Utilities::bufReadInterp(int channel, double readIdx, juce::AudioBuffer<f
     return outSamp;
 }
 
-// TODO: add an Array pointer input argument to store the crossing indices. should return number of crossings found
-int Utilities::getZeroCrossingPoints(int channel, juce::AudioBuffer<float>& buffer)
+// shuffle the contents of a juce::Array. Overload with <float> and <double> versions too
+// this is a very quick and dirty method! it just randomly swaps elements in the array once per iteration of the while loop.
+void Utilities::arrayShuffle(juce::Array<int>& array)
 {
-    return 0;
+    int numElements, numIter;
+    
+    // use current time as seed for random generator
+    std::srand( (unsigned int)std::time(nullptr) );
+    
+    numElements = array.size();
+    // let's do numElements * 10 swaps
+    numIter = numElements * 10;
+
+    while(numIter--)
+    {
+        int i, j;
+
+        i = std::rand() % (numElements - 1);
+        j = i + (std::rand() % (numElements - 1));
+        j = j % (numElements - 1);
+
+        array.swap(i, j);
+    }
+}
+
+int Utilities::getZeroCrossingPoints(int channel, juce::AudioBuffer<float>& buffer, juce::Array<int>& xIndices, double threshDb)
+{
+    int crossings = 0;
+    int bufSize = buffer.getNumSamples();
+    auto* bufPtr = buffer.getReadPointer(channel);
+        
+    for (int i = 1; i < bufSize; i++)
+    {
+        if (getSign(bufPtr[i]) != getSign(bufPtr[i-1]))
+        {
+            // TODO: a more strict criterion would be that the samples on BOTH sides of the crossing are BOTH below the dB thresh
+            // check that the sample at the crossing is below our desired dB thresh
+            if (std::fabs(bufPtr[i-1]) < juce::Decibels::decibelsToGain(threshDb))
+            {
+                // add the sample index preceding the crossing
+                xIndices.add(i-1);
+                crossings++;
+            }
+        }
+    }
+    
+    return crossings;
 }
 
 double Utilities::getZeroCrossingRate(int channel, juce::AudioBuffer<float>& buffer)
