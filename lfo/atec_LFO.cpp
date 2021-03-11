@@ -59,6 +59,10 @@ double LFO::getFreq()
 void LFO::setFreq(double f)
 {
     mFreq = f;
+    
+    if (mDebugFlag)
+        DBG("LFO frequency: " + juce::String(mFreq));
+    
     calcPhaseDelta();
 }
 
@@ -147,6 +151,11 @@ double LFO::getNextSample()
     mPhaseAngle += mPhaseDelta;
     mPhaseAngle = std::fmod(mPhaseAngle, juce::MathConstants<double>::twoPi);
     
+    // fmod() returns negative values if mPhaseAngle is negative
+    // if so let's wrap around to the positive side
+    if (mPhaseAngle < 0.0f)
+        mPhaseAngle += juce::MathConstants<double>::twoPi;
+    
     return thisSample;
 }
 
@@ -154,5 +163,8 @@ void LFO::calcPhaseDelta()
 {
     double cyclesPerSample = mFreq/mSampleRate;
     mPhaseDelta = cyclesPerSample * juce::MathConstants<double>::twoPi;
+    
+    if (mDebugFlag)
+        DBG("LFO phase delta: " + juce::String(mPhaseDelta));
 }
 } // namespace atec
