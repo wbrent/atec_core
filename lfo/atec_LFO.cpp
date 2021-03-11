@@ -11,6 +11,8 @@ LFO::LFO()
     mRange.setEnd(1.0f);
     mPhaseAngle = 0.0f;
     mPhaseDelta = 0.0f;
+    
+    init();
 }
 
 LFO::~LFO()
