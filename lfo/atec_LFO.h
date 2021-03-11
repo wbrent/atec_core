@@ -1,6 +1,6 @@
 /*
 
-    Description
+    This class is the start of a good LFO class
 
 */
 
@@ -30,7 +30,7 @@ namespace atec
         double getSampleRate();
         void setSampleRate(double sampleRate);
         double getNextSample();
-        
+
     private:
         bool mDebugFlag;
         LfoType mType;
@@ -39,8 +39,7 @@ namespace atec
         double mPhaseAngle;
         double mPhaseDelta;
         double mSampleRate;
-        
+
         void calcPhaseDelta();
     };
 } // namespace atec
-
