@@ -123,12 +123,11 @@ double LFO::getNextSample()
             thisSample *= 0.5f;
             break;
         case square:
-            thisSample = std::cos(mPhaseAngle) * __FLT_MAX__;
-            thisSample = (thisSample > 1.0f) ? 1.0f : thisSample;
-            thisSample = (thisSample < -1.0f) ? -1.0f : thisSample;
-            // normalize to 0-1 range
-            thisSample += 1.0f;
-            thisSample *= 0.5f;
+            thisSample = mPhaseAngle / juce::MathConstants<double>::twoPi;
+            if(thisSample > 0.5)
+                thisSample = 1.0f;
+            else
+                thisSample = 0.0f;
             break;
         case saw:
             thisSample = mPhaseAngle / juce::MathConstants<double>::twoPi;
