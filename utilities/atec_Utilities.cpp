@@ -91,6 +91,17 @@ double Utilities::midi2freq(double m)
     return f;
 }
 
+// to set the phasor frequency for doppler pitch shifting based on a given transposition value in semitones and delay window size in milliseconds
+double Utilities::transpo2freq(double transpo, double windowSizeMs)
+{
+    double freq;
+    
+    // e^(0.05776) = 2^(1/12) = 1.0595 = the ratio of the frequency of any semitone and its lower neighbor
+    freq = ((std::exp(transpo * 0.05776f) - 1.0f) * -1.0f) / (windowSizeMs/(double)1000.0f);
+    
+    return freq;
+}
+
 /*
  will produce an interpolated sample between y1 and y2, based on a mu value between 0.0 and 1.0
  */

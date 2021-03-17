@@ -1,17 +1,8 @@
 namespace atec
 {
-LFO::LFO()
+// use an initialization list to assign some sensible values
+LFO::LFO() : mDebugFlag(false), mType(sin), mFreq(6.0f), mRange(0.0f, 1.0f), mPhaseAngle(0.0f), mPhaseDelta(0.0f), mSampleRate(48000.0f)
 {
-    mDebugFlag = false;
-    
-    mSampleRate = 48000.0f;
-    mType = sin;
-    mFreq = 6.0f;
-    mRange.setStart(0.0f);
-    mRange.setEnd(1.0f);
-    mPhaseAngle = 0.0f;
-    mPhaseDelta = 0.0f;
-    
     init();
 }
 

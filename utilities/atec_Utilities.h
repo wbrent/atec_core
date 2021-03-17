@@ -22,6 +22,7 @@ namespace atec
         static double samp2sec(double samp, double sampleRate);
         static double freq2midi(double f);
         static double midi2freq(double m);
+        static double transpo2freq(double transpo, double windowSizeMs);
 
         static double cubicInterpolate(double y0, double y1, double y2, double y3, double mu);
         static double bufReadInterp(int channel, double readIdx, juce::AudioBuffer<float>& buffer);
