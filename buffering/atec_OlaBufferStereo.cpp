@@ -260,6 +260,11 @@ void OlaBufferStereo::clearProcessFlag(int channel)
     mProcessFlags.set(channel, false);
 }
 
+const atec::RingBuffer& OlaBufferStereo::getRingBufRef()
+{
+    return mRingBuf;
+}
+
 const juce::AudioBuffer<float>& OlaBufferStereo::getBufRefL()
 {
     return mOverlapBufL;

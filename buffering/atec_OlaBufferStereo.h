@@ -42,6 +42,7 @@ namespace atec
         void clearProcessFlag(int channel);
         const juce::AudioBuffer<float>& getBufRefL();
         const juce::AudioBuffer<float>& getBufRefR();
+        const atec::RingBuffer& getRingBufRef();
         const float* getReadPointerL(int channel);
         const float* getReadPointerR(int channel);
         float* getWritePointerL(int channel);
