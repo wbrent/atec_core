@@ -63,7 +63,8 @@ void RingBuffer::write(int destChannel, juce::AudioBuffer<float>& sourceBuf, int
     mBuffer.copyFrom(destChannel, mWriteIdx, sourceBuf, sourceChannel, 0, numSamps);
     
     // advance by the host buffer size
-    advanceWriteIdx(numSamps);
+    if(advance)
+        advanceWriteIdx(numSamps);
 }
 
 // write one sample value in a given channel and at a given offset from the current write index position
@@ -129,7 +130,7 @@ void RingBuffer::read(juce::AudioBuffer<float>& destBuf, int delaySamps)
 
 void RingBuffer::read(int sourceChannel, int delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps)
 {
-    int destBufSize = destBuf.getNumSamples();
+//    int destBufSize = destBuf.getNumSamples();
     
     auto* destBufPtr = destBuf.getWritePointer(destChannel);
     auto* ringBufPtr = mBuffer.getReadPointer(sourceChannel);
@@ -143,7 +144,7 @@ void RingBuffer::read(int sourceChannel, int delaySamps, juce::AudioBuffer<float
     if(readIdx < 0)
         readIdx += mBufSize;
     
-    for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+    for(int sample = 0; sample < numSamps; sample++, readIdx++)
         destBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
 }
 
@@ -151,7 +152,7 @@ void RingBuffer::read(int sourceChannel, int delaySamps, juce::AudioBuffer<float
 // if used with writeNoAdvance, this can be used to achieve the lowest latency
 void RingBuffer::readUnsafe(int sourceChannel, int delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps)
 {
-    int destBufSize = destBuf.getNumSamples();
+//    int destBufSize = destBuf.getNumSamples();
     
     auto* destBufPtr = destBuf.getWritePointer(destChannel);
     auto* ringBufPtr = mBuffer.getReadPointer(sourceChannel);
@@ -165,7 +166,7 @@ void RingBuffer::readUnsafe(int sourceChannel, int delaySamps, juce::AudioBuffer
     if(readIdx < 0)
         readIdx += mBufSize;
     
-    for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+    for(int sample = 0; sample < numSamps; sample++, readIdx++)
         destBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
 }
 
@@ -202,7 +203,7 @@ void RingBuffer::readInterp(juce::AudioBuffer<float>& destBuf, double delaySamps
 
 void RingBuffer::readInterp(int sourceChannel, double delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps)
 {
-    int destBufSize = destBuf.getNumSamples();
+//    int destBufSize = destBuf.getNumSamples();
     
     auto* destBufPtr = destBuf.getWritePointer(destChannel);
     double readIdx;
@@ -215,7 +216,7 @@ void RingBuffer::readInterp(int sourceChannel, double delaySamps, juce::AudioBuf
     if(readIdx < 0.0f)
         readIdx += mBufSize;
     
-    for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+    for(int sample = 0; sample < numSamps; sample++, readIdx++)
     {
         double readIdxWrapped;
         
