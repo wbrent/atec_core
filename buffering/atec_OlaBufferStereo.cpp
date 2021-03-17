@@ -71,7 +71,8 @@ void OlaBufferStereo::init()
 void OlaBufferStereo::fillRingBuf(juce::AudioBuffer<float>& inBuf)
 {
     // use special writeNoAdvance() method so we can manually advance the RingBuffer write index after all of the OLA work is done
-    mRingBuf.writeNoAdvance(inBuf);
+//    mRingBuf.writeNoAdvance(inBuf);
+    mRingBuf.write(inBuf, false); // set the advance argument to FALSE so we don't advance the write index yet
 //    mRingBuf.write(inBuf);
 }
 

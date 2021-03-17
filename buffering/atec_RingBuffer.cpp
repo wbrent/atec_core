@@ -37,7 +37,7 @@ void RingBuffer::init()
 }
 
 // TODO: assumes mBuffer and inBuf have the same number of channels
-void RingBuffer::write(juce::AudioBuffer<float>& inBuf)
+void RingBuffer::write(juce::AudioBuffer<float>& inBuf, bool advance)
 {
     auto N = inBuf.getNumSamples();
 
@@ -50,47 +50,40 @@ void RingBuffer::write(juce::AudioBuffer<float>& inBuf)
     }
     
     // advance by the host buffer size
-    advanceWriteIdx(N);
+    if(advance)
+        advanceWriteIdx(N);
 }
 
-void RingBuffer::write(int channel, juce::AudioBuffer<float>& inBuf)
+void RingBuffer::write(int destChannel, juce::AudioBuffer<float>& sourceBuf, int sourceChannel, int numSamps, bool advance)
 {
-    auto N = inBuf.getNumSamples();
-
     // TODO: safety check to make sure that inBuf numSamples <= mBuffer numSamples
 
     // copy a block from the host into our ring buffer starting at mRingBufWriteIdx
     // TODO: protect wraparound
-    mBuffer.copyFrom(channel, mWriteIdx, inBuf, channel, 0, N);
+    mBuffer.copyFrom(destChannel, mWriteIdx, sourceBuf, sourceChannel, 0, numSamps);
     
     // advance by the host buffer size
-    advanceWriteIdx(N);
+    advanceWriteIdx(numSamps);
 }
 
-// for situations where separate control over writing and advancing of the write index is needed
-void RingBuffer::writeNoAdvance(juce::AudioBuffer<float>& inBuf)
+// write one sample value in a given channel and at a given offset from the current write index position
+void RingBuffer::writeSample(int channel, int index, float sample)
 {
-    auto N = inBuf.getNumSamples();
-
-    // TODO: safety check to make sure that inBuf numSamples <= mBuffer numSamples and inBuf numChan == mBuffer numChan
-    for(int channel = 0; channel < mNumChan; channel++)
-    {
-        // copy a block from the host into our ring buffer starting at mRingBufWriteIdx
-        // TODO: protect wraparound
-        mBuffer.copyFrom(channel, mWriteIdx, inBuf, channel, 0, N);
-    }
-}
-
-void RingBuffer::read(juce::AudioBuffer<float>& outBuf)
-{
-    int numChannels, outBufSize;
+    int thisIdx = (mWriteIdx + index) % mBufSize;
     
-    numChannels = outBuf.getNumChannels();
-    outBufSize = outBuf.getNumSamples();
+    mBuffer.setSample(channel, thisIdx, sample);
+}
+
+void RingBuffer::read(juce::AudioBuffer<float>& destBuf)
+{
+    int numChannels, destBufSize;
+    
+    numChannels = destBuf.getNumChannels();
+    destBufSize = destBuf.getNumSamples();
     
     for(int channel = 0; channel < mNumChan; channel++)
     {
-        auto* outBufPtr = outBuf.getWritePointer(channel);
+        auto* destBufPtr = destBuf.getWritePointer(channel);
         auto* ringBufPtr = mBuffer.getReadPointer(channel);
         int readIdx;
         
@@ -102,22 +95,22 @@ void RingBuffer::read(juce::AudioBuffer<float>& outBuf)
         if(readIdx < 0)
             readIdx += mBufSize;
         
-        for(int sample = 0; sample < outBufSize; sample++, readIdx++)
-            outBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
+        for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+            destBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
     }
 }
 
-// TODO: assumes mBuffer and outBuf have the same number of channels
-void RingBuffer::read(juce::AudioBuffer<float>& outBuf, int delaySamps)
+// TODO: assumes mBuffer and destBuf have the same number of channels
+void RingBuffer::read(juce::AudioBuffer<float>& destBuf, int delaySamps)
 {
-    int numChannels, outBufSize;
+    int numChannels, destBufSize;
     
-    numChannels = outBuf.getNumChannels();
-    outBufSize = outBuf.getNumSamples();
+    numChannels = destBuf.getNumChannels();
+    destBufSize = destBuf.getNumSamples();
     
     for(int channel = 0; channel < mNumChan; channel++)
     {
-        auto* outBufPtr = outBuf.getWritePointer(channel);
+        auto* destBufPtr = destBuf.getWritePointer(channel);
         auto* ringBufPtr = mBuffer.getReadPointer(channel);
         int readIdx;
         
@@ -129,17 +122,17 @@ void RingBuffer::read(juce::AudioBuffer<float>& outBuf, int delaySamps)
         if(readIdx < 0)
             readIdx += mBufSize;
         
-        for(int sample = 0; sample < outBufSize; sample++, readIdx++)
-            outBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
+        for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+            destBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
     }
 }
 
-void RingBuffer::read(int channel, juce::AudioBuffer<float>& outBuf, int delaySamps)
+void RingBuffer::read(int sourceChannel, int delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps)
 {
-    int outBufSize = outBuf.getNumSamples();
+    int destBufSize = destBuf.getNumSamples();
     
-    auto* outBufPtr = outBuf.getWritePointer(channel);
-    auto* ringBufPtr = mBuffer.getReadPointer(channel);
+    auto* destBufPtr = destBuf.getWritePointer(destChannel);
+    auto* ringBufPtr = mBuffer.getReadPointer(sourceChannel);
     int readIdx;
     
     // calculate a safe readIdx for this channel
@@ -147,24 +140,46 @@ void RingBuffer::read(int channel, juce::AudioBuffer<float>& outBuf, int delaySa
     readIdx = (mWriteIdx - mOwnerBlockSize) - delaySamps;
 
     // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
-    if(readIdx<0)
+    if(readIdx < 0)
         readIdx += mBufSize;
     
-    for(int sample = 0; sample < outBufSize; sample++, readIdx++)
-        outBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
+    for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+        destBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
 }
 
-// TODO: assumes mBuffer and outBuf have the same number of channels
-void RingBuffer::readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps)
+// this can be used if you don't want to guarantee a read index that's at least one host block size behind the write index.
+// if used with writeNoAdvance, this can be used to achieve the lowest latency
+void RingBuffer::readUnsafe(int sourceChannel, int delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps)
 {
-    int numChannels, outBufSize;
+    int destBufSize = destBuf.getNumSamples();
     
-    numChannels = outBuf.getNumChannels();
-    outBufSize = outBuf.getNumSamples();
+    auto* destBufPtr = destBuf.getWritePointer(destChannel);
+    auto* ringBufPtr = mBuffer.getReadPointer(sourceChannel);
+    int readIdx;
+    
+    // calculate a readIdx for this channel
+    // unsafe version doesn't back up by mOwnerBlockSize, so it's possible to read past the write index
+    readIdx = mWriteIdx - delaySamps;
+
+    // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
+    if(readIdx < 0)
+        readIdx += mBufSize;
+    
+    for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+        destBufPtr[sample] = ringBufPtr[readIdx % mBufSize];
+}
+
+// TODO: assumes mBuffer and destBuf have the same number of channels
+void RingBuffer::readInterp(juce::AudioBuffer<float>& destBuf, double delaySamps)
+{
+    int numChannels, destBufSize;
+    
+    numChannels = destBuf.getNumChannels();
+    destBufSize = destBuf.getNumSamples();
     
     for(int channel = 0; channel < mNumChan; channel++)
     {
-        auto* outBufPtr = outBuf.getWritePointer(channel);
+        auto* destBufPtr = destBuf.getWritePointer(channel);
         double readIdx;
         
         // calculate a safe readIdx for this channel
@@ -175,18 +190,42 @@ void RingBuffer::readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps)
         if(readIdx < 0.0f)
             readIdx += mBufSize;
         
-        for(int sample = 0; sample < outBufSize; sample++, readIdx++)
+        for(int sample = 0; sample < destBufSize; sample++, readIdx++)
         {
             double readIdxWrapped;
             
             readIdxWrapped = std::fmod(readIdx, mBufSize);
-            outBufPtr[sample] = Utilities::bufReadInterp(channel, readIdxWrapped, mBuffer);
+            destBufPtr[sample] = Utilities::bufReadInterp(channel, readIdxWrapped, mBuffer);
         }
     }
 }
 
+void RingBuffer::readInterp(int sourceChannel, double delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps)
+{
+    int destBufSize = destBuf.getNumSamples();
+    
+    auto* destBufPtr = destBuf.getWritePointer(destChannel);
+    double readIdx;
+    
+    // calculate a safe readIdx for this channel
+    // read start point should be mOwnerBlockSize samples behind the write index at a minimum
+    readIdx = (mWriteIdx - mOwnerBlockSize) - delaySamps;
+
+    // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
+    if(readIdx < 0.0f)
+        readIdx += mBufSize;
+    
+    for(int sample = 0; sample < destBufSize; sample++, readIdx++)
+    {
+        double readIdxWrapped;
+        
+        readIdxWrapped = std::fmod(readIdx, mBufSize);
+        destBufPtr[sample] = Utilities::bufReadInterp(sourceChannel, readIdxWrapped, mBuffer);
+    }
+}
+
 // pass in the channel number and destination buffer sample number along with the fractional delay time
-double RingBuffer::readInterpSamp(int channel, int samp, double delaySamps)
+double RingBuffer::readInterpSample(int channel, int samp, double delaySamps)
 //double RingBuffer::readInterpSamp(int channel, double delaySamps)
 {
     double outSamp, readIdx;

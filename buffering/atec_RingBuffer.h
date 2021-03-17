@@ -17,24 +17,26 @@ namespace atec
         RingBuffer();
         ~RingBuffer();
 
+        // TODO: too many overloaded functions here. need to pick a design and commit to it
         void debug(bool d);
         void init();
-        void write(juce::AudioBuffer<float>& inBuf);
+        void write(juce::AudioBuffer<float>& inBuf, bool advance = true);
         // overload write() method so we can write to a specific channel
-        void write(int channel, juce::AudioBuffer<float>& inBuf);
-        void writeNoAdvance(juce::AudioBuffer<float>& inBuf);
-        void read(juce::AudioBuffer<float>& outBuf);
-        void read(juce::AudioBuffer<float>& outBuf, int delaySamps);
-        // overload read() method so we can read from a specific channel
-        void read(int channel, juce::AudioBuffer<float>& outBuf, int delaySamps);
+        void write(int destChannel, juce::AudioBuffer<float>& sourceBuf, int sourceChannel, int numSamps, bool advance = true);
+        void writeSample(int channel, int writeIdx, float sample);
         
-        // TODO: this shouldn't work properly yet
-        void readInterp(juce::AudioBuffer<float>& outBuf, double delaySamps);
-        double readInterpSamp(int channel, int samp, double delaySamps);
-//        double readInterpSamp(int channel, double delaySamps);
+        void read(juce::AudioBuffer<float>& destBuf);
+        void read(juce::AudioBuffer<float>& destBuf, int delaySamps);
+        // overload read() method so we can read from a specific channel
+        void read(int sourceChannel, int delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps);
+        void readUnsafe(int sourceChannel, int delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps);
+
+        void readInterp(juce::AudioBuffer<float>& destBuf, double delaySamps);
+        void readInterp(int sourceChannel, double delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps);
+        double readInterpSample(int channel, int samp, double delaySamps);
         
         int getWriteIdx();
-        void advanceWriteIdx(int blockSize); // this could use a safety check to disallow negative blockSize values
+        void advanceWriteIdx(int blockSize);
         int getOwnerBlockSize();
         void setOwnerBlockSize(int N);
         int getSize();
