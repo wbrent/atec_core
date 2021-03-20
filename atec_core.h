@@ -3,7 +3,7 @@
 
    ID:               atec_core
    vendor:           atec
-   version:          0.0.4
+   version:          0.0.5
    name:             Simple utility classes for DSP
    description:      Simple utility classes for DSP
    dependencies:       juce_dsp
