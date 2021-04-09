@@ -102,6 +102,16 @@ double Utilities::transpo2freq(double transpo, double windowSizeMs)
     return freq;
 }
 
+// this one is for getting the phasor frequency when driving a sampler voice
+double Utilities::transpo2freqSampler(double transpo, int N, double sampleRate)
+{
+    double freq;
+    
+    freq = (std::pow(2.0f, transpo/12.0f) * sampleRate) / N;
+    
+    return freq;
+}
+
 /*
  will produce an interpolated sample between y1 and y2, based on a mu value between 0.0 and 1.0
  */
@@ -126,6 +136,29 @@ double Utilities::bufReadInterp(int channel, double readIdx, juce::AudioBuffer<f
 
     // get the number of samples in the buffer
     N = buffer.getNumSamples();
+    
+    // get the fractional part of the read position
+    mu = readIdx - floor(readIdx);
+    // get the integer part of the read position
+    j = floor(readIdx);
+    
+    // set r0 through r3. if any j value is out of bounds, wrap to the beginning or end of the buffer to avoid reading out of bounds
+    r0 = ((j-1)>=0) ? j-1 : N + (j-1);
+    r1 = j;
+    r2 = (j+1) % N;
+    r3 = (j+2) % N;
+
+    // pull an interpolated sample
+    outSamp = cubicInterpolate(bufPtr[r0], bufPtr[r1], bufPtr[r2], bufPtr[r3], mu);
+    
+    return outSamp;
+}
+
+// JUCE stores sample durations in a long long type
+double Utilities::bufReadInterp(int channel, double readIdx, const float* bufPtr, int N)
+{
+    int j, r0, r1, r2, r3;
+    double outSamp, mu;
     
     // get the fractional part of the read position
     mu = readIdx - floor(readIdx);

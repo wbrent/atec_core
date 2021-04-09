@@ -23,10 +23,12 @@ namespace atec
         static double freq2midi(double f);
         static double midi2freq(double m);
         static double transpo2freq(double transpo, double windowSizeMs);
+        static double transpo2freqSampler(double transpo, int N, double sampleRate);
 
         static double cubicInterpolate(double y0, double y1, double y2, double y3, double mu);
         static double bufReadInterp(int channel, double readIdx, juce::AudioBuffer<float>& buffer);
-        
+        static double bufReadInterp(int channel, double readIdx, const float* bufPtr, int N);
+
         static void arrayShuffle(juce::Array<int>& seq);
         
         static int getZeroCrossingPoints(int channel, juce::AudioBuffer<float>& buffer, juce::Array<int>& xIndices, double threshDb);
