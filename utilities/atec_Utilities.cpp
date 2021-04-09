@@ -102,7 +102,7 @@ double Utilities::transpo2freq(double transpo, double windowSizeMs)
     return freq;
 }
 
-// this one is for getting the phasor frequency when driving a sampler voice
+// this one is for getting the phasor frequency when driving a sampler voice.
 double Utilities::transpo2freqSampler(double transpo, int N, double sampleRate)
 {
     double freq;
