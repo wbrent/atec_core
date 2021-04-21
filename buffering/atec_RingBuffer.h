@@ -34,7 +34,8 @@ namespace atec
         void readInterp(juce::AudioBuffer<float>& destBuf, double delaySamps);
         void readInterp(int sourceChannel, double delaySamps, juce::AudioBuffer<float>& destBuf, int destChannel, int numSamps);
         double readInterpSample(int channel, int samp, double delaySamps);
-        
+        double readInterpSample(int channel, double sampInc, double* lastReadIdx);
+
         int getWriteIdx();
         void advanceWriteIdx(int blockSize);
         int getOwnerBlockSize();

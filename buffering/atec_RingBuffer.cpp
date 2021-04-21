@@ -251,6 +251,36 @@ double RingBuffer::readInterpSample(int channel, int samp, double delaySamps)
     return outSamp;
 }
 
+double RingBuffer::readInterpSample(int channel, double sampInc, double* lastReadIdx)
+{
+    double outSamp, readIdx;
+    
+    outSamp = 0.0f;
+    
+    // calculate a safe readIdx
+    // read start point should be mOwnerBlockSize samples behind the write index at a minimum
+    // need to go samp samples beyond this minimum in step with the hypothetical buffer we're filling
+    // finally, need to back up delaySamps samples in order to achieve the correct delay
+    if (*lastReadIdx < 0.0f)
+        readIdx = (mWriteIdx - mOwnerBlockSize);
+    else
+        readIdx = *lastReadIdx + sampInc;
+
+    // if readIdx is before the beginning of the buffer, we need to wrap around to the end of the buffer
+    if(readIdx < 0.0f)
+        readIdx += mBufSize;
+    
+    // we'll also mod it by mBufSize in case it's beyond the end of the RingBuffer
+    readIdx = std::fmod(readIdx, mBufSize);
+        
+    outSamp = Utilities::bufReadInterp(channel, readIdx, mBuffer);
+    
+    // update the read index value
+    *lastReadIdx = readIdx;
+
+    return outSamp;
+}
+
 int RingBuffer::getWriteIdx()
 {
     return mWriteIdx;
