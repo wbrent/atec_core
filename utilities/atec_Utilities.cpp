@@ -155,7 +155,7 @@ double Utilities::bufReadInterp(int channel, double readIdx, juce::AudioBuffer<f
 }
 
 // JUCE stores sample durations in a long long type
-double Utilities::bufReadInterp(int channel, double readIdx, const float* bufPtr, int N)
+double Utilities::bufReadInterp(int channel, double readIdx, const float* bufPtr, long long int N)
 {
     int j, r0, r1, r2, r3;
     double outSamp, mu;
